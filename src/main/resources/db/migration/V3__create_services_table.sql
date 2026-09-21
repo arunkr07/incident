@@ -1,0 +1,14 @@
+CREATE TABLE services (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(150) NOT NULL,
+    description VARCHAR(500),
+    status VARCHAR(30) NOT NULL DEFAULT 'HEALTHY',
+    environment VARCHAR(50) NOT NULL DEFAULT 'PRODUCTION',
+    endpoint VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    CONSTRAINT uk_services_name_environment UNIQUE (name, environment)
+);

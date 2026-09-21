@@ -16,139 +16,335 @@ export interface User {
 
 interface AuthContextValue {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+
+  login: (
+    email: string,
+    password: string
+  ) => Promise<void>;
+
+  register: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<void>;
+
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
+
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "incident-auth";
-
-function getStoredUser(): User | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-
-  if (!stored) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(stored);
-
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !parsed.id ||
-      !parsed.name ||
-      !parsed.email ||
-      !parsed.role
-    ) {
-      window.localStorage.removeItem(STORAGE_KEY);
-      return null;
-    }
-
-    return parsed as User;
-  } catch {
-    window.localStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
+interface AuthResponse {
+  token: string;
+  user: User;
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(getStoredUser);
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://localhost:8080";
+
+const TOKEN_KEY = "incident-token";
+const USER_KEY = "incident-user";
+
+const AuthContext =
+  createContext<AuthContextValue | undefined>(
+    undefined
+  );
+
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+
+  const [token, setToken] = useState<string | null>(
+    () => localStorage.getItem(TOKEN_KEY)
+  );
+
+  const [user, setUser] = useState<User | null>(
+    () => {
+
+      const stored =
+        localStorage.getItem(USER_KEY);
+
+      if (!stored) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(stored);
+      } catch {
+        localStorage.removeItem(USER_KEY);
+        return null;
+      }
+    }
+  );
+
 
   useEffect(() => {
-    if (user) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+
+    if (token) {
+      localStorage.setItem(
+        TOKEN_KEY,
+        token
+      );
     } else {
-      window.localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
+
+  }, [token]);
+
+
+  useEffect(() => {
+
+    if (user) {
+
+      localStorage.setItem(
+        USER_KEY,
+        JSON.stringify(user)
+      );
+
+    } else {
+
+      localStorage.removeItem(USER_KEY);
+    }
+
   }, [user]);
 
-  async function login(email: string, password: string) {
-  const TEST_EMAIL = "admin@incident.dev";
-  const TEST_PASSWORD = "Incident@123";
 
-  if (email.trim() !== TEST_EMAIL || password !== TEST_PASSWORD) {
-    throw new Error("Invalid email or password.");
+  async function login(
+    email: string,
+    password: string
+  ) {
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/api/auth/login`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.message ||
+        "Invalid email or password."
+      );
+    }
+
+
+    const authResponse =
+      data as AuthResponse;
+
+
+    setToken(
+      authResponse.token
+    );
+
+    setUser(
+      authResponse.user
+    );
   }
 
-  const loggedInUser: User = {
-    id: "manager-001",
-    name: "Incident Manager",
-    email: TEST_EMAIL,
-    role: "Manager",
-  };
-
-  setUser(loggedInUser);
-
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(loggedInUser),
-  );
-}
 
   async function register(
     name: string,
     email: string,
-    password: string,
+    password: string
   ) {
-    const normalizedName = name.trim();
-    const normalizedEmail = email.trim();
 
-    if (!normalizedName || !normalizedEmail || !password) {
-      throw new Error("All fields are required.");
+    const response =
+      await fetch(
+        `${API_BASE_URL}/api/auth/register`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+          }),
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.message ||
+        "Registration failed."
+      );
     }
 
-    const registeredUser: User = {
-      id: "manager-001",
-      name: normalizedName,
-      email: normalizedEmail,
-      role: "Manager",
-    };
 
-    setUser(registeredUser);
+    const authResponse =
+      data as AuthResponse;
 
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(registeredUser),
+
+    setToken(
+      authResponse.token
+    );
+
+    setUser(
+      authResponse.user
     );
   }
 
-  function logout() {
-    setUser(null);
-    window.localStorage.removeItem(STORAGE_KEY);
+
+  async function changePassword(
+    currentPassword: string,
+    newPassword: string
+  ) {
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/api/auth/password`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+          }),
+        }
+      );
+
+
+    if (!response.ok) {
+
+      const data =
+        await response.json();
+
+      throw new Error(
+        data.message ||
+        "Password change failed."
+      );
+    }
   }
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      isAuthenticated: user !== null,
-      login,
-      register,
-      logout,
-    }),
-    [user],
-  );
+
+  async function fetchCurrentUser() {
+
+    if (!token) {
+      return;
+    }
+
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/api/auth/me`,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+
+    if (!response.ok) {
+
+      logout();
+
+      return;
+    }
+
+
+    const currentUser =
+      await response.json();
+
+    setUser(currentUser);
+  }
+
+
+  useEffect(() => {
+
+    if (token) {
+      fetchCurrentUser();
+    }
+
+  }, [token]);
+
+
+  function logout() {
+
+    setToken(null);
+    setUser(null);
+  }
+
+
+  const value =
+    useMemo(
+      () => ({
+        user,
+        token,
+        isAuthenticated:
+          Boolean(token && user),
+        login,
+        register,
+        changePassword,
+        logout,
+      }),
+      [user, token]
+    );
+
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={value}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
+
 export function useAuth() {
-  const context = useContext(AuthContext);
+
+  const context =
+    useContext(AuthContext);
 
   if (!context) {
+
     throw new Error(
-      "useAuth must be used inside AuthProvider.",
+      "useAuth must be used inside AuthProvider."
     );
   }
 
