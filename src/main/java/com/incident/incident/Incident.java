@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -17,6 +18,9 @@ public class Incident {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "incident_key", nullable = false, unique = true)
+    private String incidentKey;
 
     @Column(nullable = false, length = 255)
     private String title;
@@ -58,6 +62,10 @@ public class Incident {
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
+
+        if (incidentKey == null) {
+            incidentKey = UUID.randomUUID().toString();
+        }
 
         if (startedAt == null) {
             startedAt = now;

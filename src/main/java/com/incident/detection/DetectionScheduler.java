@@ -17,6 +17,6 @@ public class DetectionScheduler {
     @Scheduled(fixedDelayString = "${incident.detection.interval-ms:10000}")
     public void runDetection() {
 
-        detectionEngine.evaluateAllRules();
+        detectionEngine.evaluateRules();
     }
 }

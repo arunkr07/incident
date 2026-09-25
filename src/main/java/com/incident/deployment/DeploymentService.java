@@ -1,8 +1,11 @@
 package com.incident.deployment;
 
 import com.incident.common.exception.ApiException;
-import com.incident.deployment.dto.*;
-
+import com.incident.deployment.dto.DeploymentRequest;
+import com.incident.deployment.dto.DeploymentResponse;
+import com.incident.incident.event.DeploymentEvent;
+import com.incident.incident.event.EventType;
+import com.incident.incident.event.KafkaEventPublisher;
 import com.incident.service.Service;
 import com.incident.service.ServiceService;
 
@@ -11,35 +14,34 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @org.springframework.stereotype.Service
 public class DeploymentService {
 
     private final DeploymentRepository repository;
     private final ServiceService serviceService;
+    private final KafkaEventPublisher eventPublisher;
 
     public DeploymentService(
             DeploymentRepository repository,
-            ServiceService serviceService
+            ServiceService serviceService,
+            KafkaEventPublisher eventPublisher
     ) {
         this.repository = repository;
         this.serviceService = serviceService;
+        this.eventPublisher = eventPublisher;
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<DeploymentResponse> getAll(Long serviceId) {
 
         List<Deployment> deployments;
 
         if (serviceId != null) {
-
             deployments =
-                    repository.findByServiceIdOrderByStartedAtDesc(
-                            serviceId
-                    );
-
+                    repository.findByServiceIdOrderByStartedAtDesc(serviceId);
         } else {
-
             deployments =
                     repository.findAllByOrderByStartedAtDesc();
         }
@@ -49,16 +51,13 @@ public class DeploymentService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public DeploymentResponse getById(Long id) {
-
         return DeploymentResponse.from(findEntity(id));
     }
 
     @Transactional
-    public DeploymentResponse create(
-            DeploymentRequest request
-    ) {
+    public DeploymentResponse create(DeploymentRequest request) {
 
         Service service =
                 serviceService.findEntity(request.serviceId());
@@ -80,9 +79,41 @@ public class DeploymentService {
             deployment.setCompletedAt(LocalDateTime.now());
         }
 
-        return DeploymentResponse.from(
-                repository.save(deployment)
+        Deployment saved = repository.save(deployment);
+
+        // deployment.created
+        eventPublisher.publishDeploymentCreated(
+                new DeploymentEvent(
+                        UUID.randomUUID(),
+                        EventType.DEPLOYMENT_CREATED,
+                        saved.getId(),
+                        saved.getService().getId(),
+                        saved.getService().getName(),
+                        saved.getVersion(),
+                        saved.getStatus().name(),
+                        LocalDateTime.now()
+                )
         );
+
+        // deployment.completed
+        // Only publish when the resulting deployment status is COMPLETED.
+        if (saved.getStatus() == DeploymentStatus.COMPLETED) {
+
+            eventPublisher.publishDeploymentCompleted(
+                    new DeploymentEvent(
+                            UUID.randomUUID(),
+                            EventType.DEPLOYMENT_COMPLETED,
+                            saved.getId(),
+                            saved.getService().getId(),
+                            saved.getService().getName(),
+                            saved.getVersion(),
+                            saved.getStatus().name(),
+                            LocalDateTime.now()
+                    )
+            );
+        }
+
+        return DeploymentResponse.from(saved);
     }
 
     @Transactional
@@ -92,6 +123,9 @@ public class DeploymentService {
     ) {
 
         Deployment deployment = findEntity(id);
+
+        DeploymentStatus oldStatus =
+                deployment.getStatus();
 
         if (request.version() != null) {
             deployment.setVersion(request.version());
@@ -110,9 +144,28 @@ public class DeploymentService {
             }
         }
 
-        return DeploymentResponse.from(
-                repository.save(deployment)
-        );
+        Deployment saved = repository.save(deployment);
+
+        // Publish completed event only when the deployment
+        // actually transitions into COMPLETED.
+        if (oldStatus != DeploymentStatus.COMPLETED
+                && saved.getStatus() == DeploymentStatus.COMPLETED) {
+
+            eventPublisher.publishDeploymentCompleted(
+                    new DeploymentEvent(
+                            UUID.randomUUID(),
+                            EventType.DEPLOYMENT_COMPLETED,
+                            saved.getId(),
+                            saved.getService().getId(),
+                            saved.getService().getName(),
+                            saved.getVersion(),
+                            saved.getStatus().name(),
+                            LocalDateTime.now()
+                    )
+            );
+        }
+
+        return DeploymentResponse.from(saved);
     }
 
     private Deployment findEntity(Long id) {

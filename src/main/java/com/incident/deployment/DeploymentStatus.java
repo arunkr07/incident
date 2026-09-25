@@ -3,7 +3,7 @@ package com.incident.deployment;
 public enum DeploymentStatus {
 
     IN_PROGRESS,
-    SUCCESS,
+    COMPLETED,
     FAILED,
     ROLLED_BACK
 }
