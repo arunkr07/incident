@@ -64,6 +64,16 @@ public class KafkaEventPublisher {
         );
     }
 
+    public void publishAIInvestigationCompleted(
+            IncidentEvent event
+    ) {
+        publish(
+                "ai.investigation.completed",
+                event.incidentKey(),
+                event
+        );
+    }
+
     public void publishDetectionTriggered(
             DetectionEvent event
     ) {
