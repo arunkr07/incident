@@ -12,4 +12,6 @@ public interface ServiceDependencyRepository
 
     List<ServiceDependency>
     findByTargetServiceId(Long serviceId);
+
+    boolean existsBySourceServiceIdAndTargetServiceId(Long sourceServiceId, Long targetServiceId);
 }

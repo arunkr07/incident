@@ -4,6 +4,7 @@ import com.incident.detection.DetectionMetricType;
 import com.incident.detection.DetectionOperator;
 import com.incident.incident.IncidentSeverity;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record DetectionRuleUpdateRequest(
@@ -15,7 +16,7 @@ public record DetectionRuleUpdateRequest(
 
         DetectionOperator operator,
 
-        @Positive
+        @PositiveOrZero
         Double threshold,
 
         IncidentSeverity severity,

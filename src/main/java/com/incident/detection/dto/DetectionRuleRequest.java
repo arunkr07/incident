@@ -21,7 +21,7 @@ public record DetectionRuleRequest(
         DetectionOperator operator,
 
         @NotNull
-        @Positive
+        @PositiveOrZero
         Double threshold,
 
         @NotNull

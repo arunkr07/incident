@@ -118,6 +118,41 @@ public class KafkaConfig {
         return factory;
     }
 
+
+    @Bean
+    public ConsumerFactory<String, Object> notificationObjectConsumerFactory() {
+        JacksonJsonDeserializer<Object> deserializer =
+                new JacksonJsonDeserializer<>(Object.class);
+        deserializer.addTrustedPackages("com.incident");
+
+        java.util.Map<String, Object> config = new java.util.HashMap<>();
+        config.put(org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, "incident-notification-v1");
+        config.put(org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JacksonJsonDeserializer.class);
+        config.put(org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        return new DefaultKafkaConsumerFactory<>(
+                config, new StringDeserializer(), deserializer
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, Object>
+    notificationObjectKafkaListenerContainerFactory(
+            ConsumerFactory<String, Object> notificationObjectConsumerFactory
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(notificationObjectConsumerFactory);
+        return factory;
+    }
+
+    @Bean
+    public NewTopic aiInvestigationCompletedTopic() {
+        return new NewTopic("ai.investigation.completed", 3, (short) 1);
+    }
+
     @Bean
     public NewTopic incidentCreatedTopic() {
         return new NewTopic(

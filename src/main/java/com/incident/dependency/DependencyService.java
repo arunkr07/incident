@@ -86,6 +86,14 @@ public class DependencyService {
                         request.targetServiceId()
                 );
 
+        if (repository.existsBySourceServiceIdAndTargetServiceId(
+                request.sourceServiceId(), request.targetServiceId())) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "This service dependency already exists"
+            );
+        }
+
         ServiceDependency dependency =
                 new ServiceDependency();
 
