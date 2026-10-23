@@ -12,7 +12,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useAuth } from "../components/context/AuthContext";
-import { div } from "framer-motion/client";
 
 interface LoginLocationState {
   from?: string;

@@ -4,6 +4,7 @@ import com.incident.ai.investigation.dto.InvestigationResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/incidents")
@@ -19,14 +20,16 @@ public class InvestigationController {
 
     @PostMapping("/{incidentId}/investigations")
     public ResponseEntity<InvestigationResponse> investigate(
-            @PathVariable Long incidentId
+            @PathVariable Long incidentId,
+            Authentication authentication
     ) {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(
                         investigationService.start(
-                                incidentId
+                                incidentId,
+                                authentication.getName()
                         )
                 );
     }

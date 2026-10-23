@@ -6,6 +6,11 @@ import com.incident.ai.investigation.dto.InvestigationContext;
 import com.incident.ai.investigation.dto.InvestigationResponse;
 import com.incident.incident.Incident;
 import com.incident.incident.IncidentService;
+import com.incident.settings.ManagerSettingsService;
+import com.incident.common.exception.ApiException;
+import org.springframework.http.HttpStatus;
+
+import java.util.Map;
 import com.incident.incident.event.EventType;
 import com.incident.incident.event.IncidentEventFactory;
 import com.incident.incident.event.KafkaEventPublisher;
@@ -26,6 +31,7 @@ public class AIInvestigationService {
     private final KafkaEventPublisher eventPublisher;
     private final IncidentEventFactory eventFactory;
     private final ObjectMapper objectMapper;
+    private final ManagerSettingsService managerSettingsService;
 
     @Value("${openai.model:gpt-5.6}")
     private String model;
@@ -38,7 +44,8 @@ public class AIInvestigationService {
             OpenAIService openAIService,
             KafkaEventPublisher eventPublisher,
             IncidentEventFactory eventFactory,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ManagerSettingsService managerSettingsService
     ) {
         this.incidentService = incidentService;
         this.investigationRepository = investigationRepository;
@@ -48,12 +55,30 @@ public class AIInvestigationService {
         this.eventPublisher = eventPublisher;
         this.eventFactory = eventFactory;
         this.objectMapper = objectMapper;
+        this.managerSettingsService = managerSettingsService;
     }
 
     @Transactional
-    public InvestigationResponse start(
-            Long incidentId
-    ) {
+    public InvestigationResponse start(Long incidentId) {
+        return start(incidentId, null);
+    }
+
+    @Transactional
+    public InvestigationResponse start(Long incidentId, String managerEmail) {
+        Map<String, Object> aiPreferences = null;
+        if (managerEmail != null) {
+            Map<String, Object> settings = managerSettingsService.getForEmail(managerEmail);
+            Object configured = settings.get("ai");
+            if (configured instanceof Map<?, ?> rawPreferences) {
+                aiPreferences = new java.util.LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : rawPreferences.entrySet()) {
+                    if (entry.getKey() instanceof String key) aiPreferences.put(key, entry.getValue());
+                }
+            }
+            if (aiPreferences != null && Boolean.FALSE.equals(aiPreferences.get("enabled"))) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "AI investigation is disabled in manager settings.");
+            }
+        }
 
         Incident incident =
                 incidentService.findEntity(incidentId);
@@ -78,7 +103,9 @@ public class AIInvestigationService {
         try {
 
             InvestigationContext context =
-                    contextService.collect(incident);
+                    managerEmail == null
+                            ? contextService.collect(incident)
+                            : contextService.collect(incident, aiPreferences);
 
             String prompt =
                     promptBuilder.build(context);

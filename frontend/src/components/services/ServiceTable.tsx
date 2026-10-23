@@ -50,7 +50,7 @@ export default function ServiceTable({
                 </td>
 
                 <td className="px-5 py-4 font-mono text-xs text-white/45">
-                  {service.version}
+                  {service.version ?? "—"}
                 </td>
 
                 <td
@@ -60,15 +60,15 @@ export default function ServiceTable({
                       : "text-white/45"
                   }`}
                 >
-                  {service.errorRate}
+                  {service.errorRate ?? "—"}
                 </td>
 
                 <td className="px-5 py-4 font-mono text-xs text-white/45">
-                  {service.latency}
+                  {service.latency ?? "—"}
                 </td>
 
                 <td className="px-5 py-4 font-mono text-xs text-white/45">
-                  {service.requestsPerSecond} req/s
+                  {service.requestsPerSecond == null ? "—" : `${service.requestsPerSecond} req/s`}
                 </td>
 
                 <td className="px-5 py-4">

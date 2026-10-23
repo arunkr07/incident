@@ -1,37 +1,27 @@
-export type ServiceStatus =
-  | "OPERATIONAL"
-  | "DEGRADED"
-  | "DOWN"
-  | "UNKNOWN";
-
-export type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG";
-
-export type DeploymentStatus =
-  | "SUCCESS"
-  | "IN_PROGRESS"
-  | "FAILED"
-  | "ROLLED_BACK";
+export type ServiceStatus = "OPERATIONAL" | "DEGRADED" | "DOWN" | "UNKNOWN";
+export type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG" | "FATAL";
+export type DeploymentStatus = "SUCCESS" | "IN_PROGRESS" | "FAILED" | "ROLLED_BACK";
 
 export interface Service {
   id: string;
   name: string;
   status: ServiceStatus;
-  version: string;
-  uptime: string;
-  errorRate: string;
-  latency: string;
-  requestsPerSecond: number;
+  version?: string;
+  uptime?: string;
+  errorRate?: string;
+  latency?: string;
+  requestsPerSecond?: number;
   description: string;
+  environment?: string;
+  endpoint?: string;
 }
-
 export interface ServiceDependency {
   source: string;
   target: string;
-  type: "HTTP" | "DATABASE" | "QUEUE" | "CACHE";
-  status: "HEALTHY" | "DEGRADED" | "FAILED";
+  type: "HTTP" | "DATABASE" | "QUEUE" | "CACHE" | string;
+  status: "HEALTHY" | "DEGRADED" | "FAILED" | "UNKNOWN";
   latency?: string;
 }
-
 export interface LogEntry {
   id: string;
   timestamp: string;
@@ -42,17 +32,12 @@ export interface LogEntry {
   traceId?: string;
   requestId?: string;
 }
-
 export interface MetricSeries {
   name: string;
   unit: string;
   description: string;
-  points: {
-    timestamp: string;
-    value: number;
-  }[];
+  points: { timestamp: string; value: number }[];
 }
-
 export interface Deployment {
   id: string;
   service: string;

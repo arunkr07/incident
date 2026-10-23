@@ -1,7 +1,6 @@
 import { ChevronRight, Clock3 } from "lucide-react";
 import type { Incident } from "../../types/incident";
 import IncidentStatus from "./IncidentStatus";
-import { thead } from "framer-motion/client";
 
 interface IncidentTableProps {
   incidents: Incident[];

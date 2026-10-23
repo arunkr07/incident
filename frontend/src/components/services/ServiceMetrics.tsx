@@ -10,19 +10,19 @@ export default function ServiceMetrics({
   const metrics = [
     {
       label: "Error rate",
-      value: service.errorRate,
+      value: service.errorRate ?? "—",
     },
     {
       label: "Latency",
-      value: service.latency,
+      value: service.latency ?? "—",
     },
     {
       label: "Requests",
-      value: `${service.requestsPerSecond} req/s`,
+      value: service.requestsPerSecond == null ? "—" : `${service.requestsPerSecond} req/s`,
     },
     {
       label: "Uptime",
-      value: service.uptime,
+      value: service.uptime ?? "—",
     },
   ];
 

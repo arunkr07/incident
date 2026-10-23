@@ -38,7 +38,7 @@ export default function DependencyMap({
           >
             <ServiceNode
               name={dependency.source}
-              healthy={true}
+              healthy={dependency.status === "HEALTHY"}
             />
 
             <div className="flex items-center gap-2 text-white/20">
@@ -60,10 +60,12 @@ export default function DependencyMap({
                     ? "text-emerald-400"
                     : dependency.status === "DEGRADED"
                       ? "text-orange-400"
-                      : "text-red-400"
+                      : dependency.status === "UNKNOWN"
+                        ? "text-white/35"
+                        : "text-red-400"
                 }`}
               >
-                {dependency.status}
+                {dependency.status === "UNKNOWN" ? "Health not reported" : dependency.status}
               </span>
 
               {dependency.latency && (

@@ -9,12 +9,14 @@ import com.incident.assistant.dto.AssistantAnswerResponse;
 import com.incident.common.exception.ApiException;
 import com.incident.incident.Incident;
 import com.incident.incident.IncidentService;
+import com.incident.settings.ManagerSettingsService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class IncidentAssistantService {
@@ -22,20 +24,43 @@ public class IncidentAssistantService {
     private final InvestigationContextService contextService;
     private final OpenAIService openAIService;
     private final ObjectMapper objectMapper;
+    private final ManagerSettingsService managerSettingsService;
 
     public IncidentAssistantService(IncidentService incidentService,
-            InvestigationContextService contextService, OpenAIService openAIService,
-            ObjectMapper objectMapper) {
+                                    InvestigationContextService contextService, OpenAIService openAIService,
+                                    ObjectMapper objectMapper, ManagerSettingsService managerSettingsService) {
         this.incidentService = incidentService;
         this.contextService = contextService;
         this.openAIService = openAIService;
         this.objectMapper = objectMapper;
+        this.managerSettingsService = managerSettingsService;
     }
 
     @Transactional(readOnly = true)
     public AssistantAnswerResponse ask(Long incidentId, String question) {
+        return ask(incidentId, question, null);
+    }
+
+    @Transactional(readOnly = true)
+    public AssistantAnswerResponse ask(Long incidentId, String question, String managerEmail) {
         Incident incident = incidentService.findEntity(incidentId);
-        InvestigationContext context = contextService.collect(incident);
+        Map<String, Object> aiPreferences = null;
+        if (managerEmail != null) {
+            Map<String, Object> settings = managerSettingsService.getForEmail(managerEmail);
+            Object configured = settings.get("ai");
+            if (configured instanceof Map<?, ?> rawPreferences) {
+                aiPreferences = new java.util.LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : rawPreferences.entrySet()) {
+                    if (entry.getKey() instanceof String key) aiPreferences.put(key, entry.getValue());
+                }
+            }
+            if (aiPreferences != null && Boolean.FALSE.equals(aiPreferences.get("enabled"))) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "AI assistant is disabled in manager settings.");
+            }
+        }
+        InvestigationContext context = managerEmail == null
+                ? contextService.collect(incident)
+                : contextService.collect(incident, aiPreferences);
         String prompt = """
                 You are the incident response assistant for a production manager.
                 Answer using only the supplied incident context. Never invent telemetry,

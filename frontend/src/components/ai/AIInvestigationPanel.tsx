@@ -13,6 +13,7 @@ import type {
 import AIInvestigationStatusComponent from "./AIInvestigationStatus";
 import AIInvestigationResultComponent from "./AIInvestigationResult";
 import RemediationPanel from "../remediation/RemediationPanel";
+import { api, mapApiInvestigation } from "../../api/client";
 
 interface Props {
   incidentId: string;
@@ -33,34 +34,29 @@ export default function AIInvestigationPanel({
 
   const [remediationOpen, setRemediationOpen] =
     useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function startInvestigation() {
     setStatus("COLLECTING_CONTEXT");
     setResult(null);
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, 700),
-    );
-
-    setStatus("ANALYZING");
-
-    /*
-     * The actual AI request will replace this workflow
-     * when the Spring Boot AI orchestration API is connected.
-     *
-     * No fake result is generated here.
-     */
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, 900),
-    );
-
-    setStatus("COMPLETE");
-
-    /*
-     * Deliberately leave result empty until the backend
-     * provides a real investigation result.
-     */
+    setError(null);
+    try {
+      setStatus("ANALYZING");
+      const response = await api.startInvestigation(incidentId);
+      if (response.status === "FAILED") {
+        setStatus("FAILED");
+        setError(response.errorMessage || "The backend investigation failed.");
+        return;
+      }
+      setResult(mapApiInvestigation(response));
+      setStatus(response.status === "COMPLETED" ? "COMPLETE" : "ANALYZING");
+      if (response.status !== "COMPLETED") {
+        setError(`Investigation status: ${response.status}. Check the latest investigation after the backend finishes processing.`);
+      }
+    } catch (err) {
+      setStatus("FAILED");
+      setError(err instanceof Error ? err.message : "Could not start the investigation.");
+    }
   }
 
   return (
@@ -157,6 +153,8 @@ export default function AIInvestigationPanel({
                 </div>
               )}
 
+              {error && <div role="alert" className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">{error}</div>}
+
               {(status === "COLLECTING_CONTEXT" ||
                 status === "ANALYZING") && (
                 <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/2 p-8">
@@ -202,6 +200,8 @@ export default function AIInvestigationPanel({
                 </div>
               )}
 
+              {status === "FAILED" && !error && <div className="rounded-2xl border border-red-500/15 bg-red-500/5 p-6 text-sm text-red-300">The investigation failed. Retry after checking the backend logs.</div>}
+
               {result && (
                 <AnimatePresence>
                   <AIInvestigationResultComponent
@@ -222,6 +222,7 @@ export default function AIInvestigationPanel({
           <RemediationPanel
             onClose={() => setRemediationOpen(false)}
             incidentId={incidentId}
+            recommendation={result?.recommendation}
           />
         )}
       </AnimatePresence>

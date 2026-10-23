@@ -67,7 +67,7 @@ function MetricChart({
 
         <div className="text-right">
           <p className="text-lg font-semibold text-white">
-            {latest.value}
+            {latest?.value ?? "—"}
             <span className="ml-1 text-xs font-normal text-white/35">
               {unit}
             </span>
@@ -76,7 +76,7 @@ function MetricChart({
       </div>
 
       <div className="mt-6">
-        <svg
+        {points.length === 0 ? <p className="py-16 text-center text-sm text-white/30">No {title.toLowerCase()} metrics have been recorded for this service.</p> : <><svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           className="h-48 w-full overflow-visible"
@@ -132,7 +132,7 @@ function MetricChart({
               {point.time}
             </span>
           ))}
-        </div>
+        </div></>}
       </div>
     </div>
   );

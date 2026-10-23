@@ -95,8 +95,7 @@ export default function Settings() {
 
           <div className="mt-6 flex items-center gap-2 rounded-xl border border-white/5 bg-white/1 p-4 text-[10px] text-white/25">
             <LockKeyhole size={13} />
-            Settings will be persisted by the backend once API integration
-            is connected.
+            Account preferences and detection rules are stored by the backend. Production remediation approval remains enforced server-side.
           </div>
         </div>
       </div>
